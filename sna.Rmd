@@ -1,0 +1,271 @@
+---
+title: "KNOWNET - Social Network Analysis"
+output:
+  tufterhandout::pdf_tufte_handout:
+    keep_tex: false
+  tufterhandout::html_tufte_handout:
+    toc: true
+
+---
+
+
+```{r setup, include=FALSE}
+library(knitr)
+library(igraph)
+library(knet)
+
+opts_chunk$set(cache=TRUE)
+```
+
+Introduction
+--------------------------------------------------------------------
+
+This document will give a walkthrough of how to do Social Network Analysis using the knet package by example. 
+
+Let's generate an undirected tree graph with 150 nodes and 4 children max per node. This can represent a regular SME company structure.
+
+```{r }
+tr <- graph.tree(200, children = 4, mode="undirected")
+```
+
+Create a graph from the tree by adding 200 random edges. It is not guaranteed that there won't be fetures like multiple edges between two nodes or loop edges due to the sampling technique used.
+```{r }
+gr <- add.edges(tr
+          , as.list( sample(V(tr),100,replace=TRUE)
+                   , sample(V(tr),100,replace=TRUE)
+                   ))
+```
+
+Simplify the graph by removing multiple edges and loops.
+```{r}
+gr <- simplify(gr, remove.multiple=TRUE, remove.loops=TRUE)
+```
+
+Network centralization measures
+--------------------------------------------------------------------
+The *igraph* package implements a battery of different network measures usually used in Social Network Analysis. We will demonstrate some of them below for completeness.
+
+We can calculate the degree centralisation of the generated tree
+```{r }
+#calculate the centralization
+cD <- centralization.degree(tr, normalized = FALSE)
+
+#print the calculated centralization
+print(cD$centralization)
+```
+
+Calculate the normalized degree centralisation of the generated graph
+```{r }
+#calculate the normalized centralization
+cDn <- centralization.degree(tr, normalized = TRUE)
+
+#print the calculated normalized centralization
+print(cDn$centralization)
+```
+
+As a comparison calculate the degree centralisation of the generated graph
+```{r }
+#calculate the centralization
+cDgr <- centralization.degree(gr, normalized = FALSE)
+
+#print the calculated centralization
+print(cDgr$centralization)
+
+#print the calculated normalized centralization
+print(cDn$centralization)
+```
+
+Print the theoritical maximum of the degree centrality of a graph of this size
+```{r }
+#print the theoretical maximum
+print(cDn$theoretical_max)
+```
+
+Plot the histogram of the degrees of individual nodes of the tree
+```{r fig1, tidy = TRUE, fig.width = 4, fig.height = 4, marginfigure = TRUE, fig.cap = "Distribution of the degree centrality of individual nodes"}
+hist(cD$res)
+```
+
+
+Plot the histogram of the degrees of individual nodes of the graph
+```{r fig2, tidy = TRUE, fig.width = 4, fig.height = 4, marginfigure = TRUE, fig.cap = "Distribution of the degree centrality of individual nodes"}
+hist(cDgr$res)
+```
+
+Calculate closeness centralization of the tree
+```{r }
+cC <- centralization.closeness(tr,normalized = FALSE)
+
+#print the calculated centralization
+print(cC$centralization)
+```
+
+Plot the histogram of the closeness for individual nodes of the tree
+```{r fig3, fig.width=7, fig.height=6}
+hist(cC$res, main="Distribution of the closeness centrality of individual nodes")
+```
+
+Calculate closeness centralization of the generated graph
+```{r }
+cCgr <- centralization.closeness(gr,normalized = FALSE)
+
+#print the calculated centralization
+print(cCgr$centralization)
+```
+
+Plot the histogram of the closeness for individual nodes of the generated graph
+```{r  fig4, fig.width=7, fig.height=6}
+hist(cCgr$res, main="Distribution of the closeness centrality of individual nodes")
+```
+
+Calculate the graph betweenness centralization
+```{r }
+cB <- centralization.betweenness (tr, directed = FALSE, normalized = FALSE)
+
+#print the calculated centralization
+print(cB$centralization)
+```
+
+Plot the histogram of the betweenness centrality of individual nodes
+```{r  fig5, fig.width=7, fig.height=6}
+hist(cB$res, main="Distribution of the betweenness centrality of individual nodes")
+```
+
+Calculate the graph betweenness centralization
+```{r }
+cBgr <- centralization.betweenness (gr, directed = FALSE, normalized = FALSE)
+
+#print the calculated centralization
+print(cBgr$centralization)
+```
+
+Plot the histogram of the betweenness centrality of individual nodes
+```{r  fig6, fig.width=7, fig.height=6}
+hist(cBgr$res, main="Distribution of the betweenness centrality of individual nodes")
+```
+
+Clustering and cliques
+--------------------------------------------------------------------
+
+The *transitivity* function from the *igraph* package calculates the clustering coefficient of the graph
+```{r }
+clusteringC <- transitivity(tr,type="globalundirected")
+
+#print the calculated clustering coefficient of the tree
+print(clusteringC)
+```
+
+Find the largest cliques in the graph
+```{r}
+grC <- largest.cliques(gr)
+```
+
+Plot the graph with the cliques coloured in different colours.
+
+```{r  fig7, fig.width=7, fig.height=6}
+#a list of coulour to help with plotting the graphs
+colours = c("#E4B9CD","#BF6D92","#8F305B","#5F0930"
+           ,"#FFD6CF","#E38F82","#AA4839","#71190B"
+           ,"#ACD3B8","#60A876","#2A7E43","#08541F"
+           ,"#DFF1C4","#ACD077","#729C34","#41680A"
+           ,"#B9E4CD","#6DBF92","#308F5B","#095F30"
+           ,"#B9CDE4","#6D92BF","#305B8F","#09305F"          )
+
+#set all vertice colours to white
+V(gr)$color <- "white"
+
+#for all cliques set the corresponding vertice colour
+for (i in 1:length(grC)) {
+  sel <- grC[[i]]
+  V(gr)[sel]$color <- colours[i]
+}
+
+#plot the result
+knet.plot.graph(gr)
+```
+
+Plot a clique in a separate graph
+```{r  fig8, fig.width=7, fig.height=6}
+ # select the first clique
+ sel <- grC[[1]]
+ V(gr)$color <- "white"
+ V(gr)[sel]$color <- "darkorchid"
+ knet.plot.graph(gr)
+```
+
+
+Find communities in the generated graph using a model from statistical mechanics called spin-glass and change vertex colour to reflect the dicovered communities.
+```{r fig9,  fig.width=7, fig.height=6}
+
+#discover the communities in the graph using the spinglass method
+grc <- spinglass.community(gr)
+```
+Plot the histogram of the community membership distribution
+```{r  fig10, fig.width=7, fig.height=6}
+hist(grc$membership, main="Histogram of community membership")
+```
+
+Plot the graph with the communities coloured in different colours.
+
+```{r  fig11, fig.width=7, fig.height=6}
+#transfer the membership attribute from the communities object to the graph
+
+colours = sample( rainbow( length(grc) + 1) )
+V(gr)$membership <- grc$membership
+
+#set all vertice colours to white
+V(gr)$color <- "white"
+
+# for each vertice select colour according tho its membership propery (clique number)
+V(gr)$color <- colours[V(gr)$membership]
+#plot the graph using the knet graph plot helper function
+knet.plot.graph(gr)
+```
+
+Plot the communities detected in the graph
+```{r  fig12, fig.width=7, fig.height=6}
+plot(grc,gr, vertex.label=NA, vertex.size=5)
+
+```
+
+Use a different community detection method - fastgreedy algorithm, for a list of other community detection algorithms and related references check the (igraph documention)[http://igraph.org]
+```{r  fig13, fig.width=7, fig.height=6}
+gfc <- fastgreedy.community(gr)
+```
+
+Plot the membership histogram
+```{r  fig14, fig.width=7, fig.height=6}
+hist(gfc$membership, main="Histogram of the fastgreedy community membership")
+```
+
+Plot the graph with the communities coloured in different colours.
+```{r  fig15, fig.width=7, fig.height=6}
+plot(gfc,gr, vertex.label=NA, vertex.size=5)
+```
+
+Plot the dendogram of the community hierarchy
+```{r  fig16, fig.width=10, fig.height=8}
+dendPlot(gfc)
+```
+
+Ploting
+--------------------------------------------------------------------
+
+Knowing the root element of the tree *tr* , in this case 1, we can plot the tree
+```{r  fig18, fig.width=7, fig.height=6}
+knet.plot.tree(tr,1)
+```
+
+Or we can plot it as a *regular* graph
+```{r  fig19, fig.width=7, fig.height=6}
+knet.plot.graph(tr)
+```
+
+Plot the two graph in a circular layout
+```{r  fig20, fig.width=7, fig.height=6}
+knet.plot.circular(tr)
+```
+```{r  fig21, fig.width=7, fig.height=6}
+knet.plot.circular(gr)
+
+```
