@@ -19,6 +19,7 @@ csl: harvard-style.csl
 library(knet)    # KNOWNET helper utilities
 library(ggplot2) # Format R data frames as LaTeX/HTML tables
 library(GGally)
+library(gridExtra)
 library(xtable)  # Produce a flowchart.
 library(diagram) # Produce a flowchart.
 library(plyr)
@@ -112,10 +113,58 @@ Let's look at the first five rows and only the *From*, *To*, and *Message* colum
 #      main="A slice of data from the Messages frame")
 ```
 
-Let's plot who messaged whop and 
-```{r de2, fig.star=TRUE}
+```{r de2,  fig.star = TRUE, fig.title="Counts of messages from, between, and to individuals in the social network "}
 
-ggpairs(Messages[,c("From","To")], axisLabels="show")
+#count the number of messages between all pairs of people
+mcount <- ddply(Messages,.(From,To),nrow)
+colnames(mcount) <- c("From", "To", "Count")
+
+base_size <- 10
+
+plot_blank <- ggplot(Messages, aes(From,To)) + geom_blank() + theme(legend.text = element_blank(), axis.text=element_blank(), axis.title = element_blank(), axis.ticks=element_blank(),  panel.background = element_blank())
+
+heat_map <- (  ggplot(mcount, aes(From,To)) 
+             + geom_tile(aes(fill = Count), colour = "white")
+             + scale_fill_gradient(low = "white", high = "steelblue")
+             + theme_grey(base_size = base_size)
+             + theme(
+                 legend.position = "none"
+               , axis.ticks = element_blank()
+               , axis.text.x = element_text(
+                    size = base_size * 0.8
+                  , angle = 330
+                  , hjust = 0
+                  , colour = "grey50")
+               ))
+
+plot_top <- (ggplot(Messages, aes(x=From)) + geom_bar() + labs(x = "", y = "")
+  + theme_grey(base_size = base_size)
+  + theme(
+       legend.position = "none"
+     , axis.ticks = element_blank()
+     , axis.text.x = element_text(
+          size = base_size * 0.8
+        , angle = 330
+        , hjust = 0
+        , colour = "grey50")
+     )
+  )
+
+plot_right <- (ggplot(Messages, aes(x=To)) + geom_bar() + labs(x = "", y = "") + coord_flip()
+  + theme_grey(base_size = base_size)
+  + theme(
+       legend.position = "none"
+     , axis.ticks = element_blank()
+     , axis.text.x = element_text(
+          size = base_size * 0.8
+        , angle = 330
+        , hjust = 0
+        , colour = "grey50")
+     )
+  )
+
+grid.arrange(plot_top, plot_blank, heat_map, plot_right, ncol=2, nrow=2, widths = c(3,2), heights = c(2,3))
+
 ```
 
 Social Network Analysis
