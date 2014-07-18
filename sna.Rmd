@@ -104,36 +104,37 @@ Messages$To <- names$Name[Messages$To]
 Data Exploration
 =======================
 
-Let's look at the first five rows and only the *From*, *To*, and *Message* columns from the *Messages* data frame.
-```{r de1, results="asis"}
+Let's look at the first five rows and only the *From*, *To*, and *Message* columns from the *Messages* data frame. The message text is trimmed  for illustration purposes
+```{r de1, results="asis", fig.cap="Extract from the messages data"}
+Messages$Text <- strtrim(Messages$Message,30)
 # switch comments if generating pdf
- print(xtable(Messages[1:5,c("From","To","Message")],tabular.environment='longtable'), 
+ print(xtable(Messages[1:5,c("From","To","Text")],tabular.environment='longtable'), 
        main="A slice of data from the Messages frame")
 #print(xtable(Messages[1:5,c("From","To","Message")]), type="html", 
 #      main="A slice of data from the Messages frame")
 ```
 
 Let's look at some of the message counts. It can be used to gauge the activity and social dynamics in the network.
-```{r de2,  fig.title="Heatmap of messages between individuals and groups in the social network "}
+```{r de2,  fig.cap="Heatmap of messages between individuals and groups in the social network "}
+mcount <- ddply(Messages,.(From,To),nrow)
+colnames(mcount) <- c("From", "To", "Count")
 base_size <- 10
-heat_map <- (  ggplot(Messages, aes(From,To)) 
-             + geom_tile(aes(fill = Count), colour = "white")
-             + scale_fill_gradient(low = "white", high = "steelblue")
-             + theme_grey(base_size = base_size)
-             + theme(
-                 legend.position = "none"
-               , axis.ticks = element_blank()
-               , axis.text.x = element_text(
-                    size = base_size * 0.8
-                  , angle = 330
-                  , hjust = 0
-                  , colour = "grey50")
-               ))
+(ggplot(mcount, aes(To,From)) 
+   + geom_tile(aes(fill = Count), colour = "white")
+   + scale_fill_gradient(low = "#eeeeee", high = "steelblue")
+   + theme_grey(base_size = base_size)
+   + theme(
+       axis.ticks = element_blank()
+     , axis.text.x = element_text(
+          size = base_size * 0.8
+        , angle = 330
+        , hjust = 0
+        , colour = "grey50")))
 ```
 
 Who is most active? With not too many people a plot can highlight the most enthusiastic users of the social network. This does not mean they are people of influence, but indicates that they are worth investigating.
-```{r de2,  fig.title="Messages sent by individuals in the social network "}
-plot_top <- (ggplot(Messages, aes(x=From)) + geom_bar() + labs(x = "", y = "")
+```{r de3,  fig.cap="Messages sent by individuals in the social network" }
+(ggplot(Messages, aes(x=From)) + geom_bar() + labs(x = "", y = "")
   + theme_grey(base_size = base_size)
   + theme(
        legend.position = "none"
@@ -142,14 +143,12 @@ plot_top <- (ggplot(Messages, aes(x=From)) + geom_bar() + labs(x = "", y = "")
           size = base_size * 0.8
         , angle = 330
         , hjust = 0
-        , colour = "grey50")
-     )
-  )
+        , colour = "grey50")))
 ```
 
-Suimilarly, who receives most messages. For individuals it may mean that they are valuable members of the community, depending on context.
-```{r de2,  fig.title="Messages sent to individuals and groups in the social network "}
-plot_right <- (ggplot(Messages, aes(x=To)) + geom_bar() + labs(x = "", y = "") 
+Similarly, who receives most messages. For individuals it may mean that they are valuable members of the community, depending on context.
+```{r de4,  fig.cap="Messages sent to individuals and groups in the social network" }
+(ggplot(Messages, aes(x=To)) + geom_bar() + labs(x = "", y = "") 
   + theme_grey(base_size = base_size)
   + theme(
        legend.position = "none"
@@ -158,12 +157,7 @@ plot_right <- (ggplot(Messages, aes(x=To)) + geom_bar() + labs(x = "", y = "")
           size = base_size * 0.8
         , angle = 330
         , hjust = 0
-        , colour = "grey50")
-     )
-  )
-
-grid.arrange(plot_top, plot_blank, heat_map, plot_right, ncol=2, nrow=2, widths = c(3,2), heights = c(2,3))
-
+        , colour = "grey50")))
 ```
 
 Social Network Analysis
