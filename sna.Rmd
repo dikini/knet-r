@@ -109,8 +109,8 @@ Let's look at the first five rows and only the *From*, *To*, and *Message* colum
 ```{r de1, results="asis", fig.cap="Extract from the messages data", message=FALSE,warnings = FALSE}
 Messages$Text <- strtrim(Messages$Message,30)
 # switch comments if generating pdf
- print(xtable(Messages[1:5,c("From","To","Text")],tabular.environment='longtable'), 
-       main="A slice of data from the Messages frame")
+# print(xtable(Messages[1:5,c("From","To","Text")],tabular.environment='longtable'), main="A slice of data from the Messages frame")
+kable(Messages[1:5,c("From","To","Text")],format = 'markdown')
 #print(xtable(Messages[1:5,c("From","To","Message")]), type="html", 
 #      main="A slice of data from the Messages frame")
 ```
