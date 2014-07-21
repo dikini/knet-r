@@ -24,6 +24,7 @@ library(xtable)  # Produce a flowchart.
 library(diagram) # Produce a flowchart.
 library(plyr)
 library(igraph)  # graph manipulation and anlysis
+library(tm)
 
 opts_chunk$set(cache=TRUE) # caching of document output - could speed up the results
 ```
@@ -105,7 +106,7 @@ Data Exploration
 =======================
 
 Let's look at the first five rows and only the *From*, *To*, and *Message* columns from the *Messages* data frame. The message text is trimmed  for illustration purposes
-```{r de1, results="asis", fig.cap="Extract from the messages data"}
+```{r de1, results="asis", fig.cap="Extract from the messages data", message=FALSE,warnings = FALSE}
 Messages$Text <- strtrim(Messages$Message,30)
 # switch comments if generating pdf
  print(xtable(Messages[1:5,c("From","To","Text")],tabular.environment='longtable'), 
@@ -159,6 +160,30 @@ Similarly, who receives most messages. For individuals it may mean that they are
         , hjust = 0
         , colour = "grey50")))
 ```
+
+Document Classification, Text Analysis
+==========================================
+
+For the purposes of the project we have to be able to detect the presence of knowledge artifacts in the body of messages. This is a very broad and consequently vague concept. What is knowledge in this sense? How can we identify knowledge? How can we classify it? What is considered knowledge in the context of the company? What are the knowledge context of the individuals? How does the social network supported by social media help to disseminate or discover knowledge? How does the artifact network, supported by social media help? 
+
+We will work within the KSEM framework[@Helms2009].First, we have to review the data, to be able to identify classes of knowledge carrying artefacts, for example - innovation, optimistaion of processes, discussion of results, seeking advice, etc... These are strongly context dependent, they will differ from company to company and network to network, as they depend on what the compaies do, their culture, and other environmental factors.
+
+Next, having identified the classes of knowledge carrying artifacts, we have to perform manual coding of the messages. This can be done in spreadsheets like excel or specialised tools like NVivo. For small numbers of messages, less than a thousand, for example, there is no point in using automatic classification techniques, as the training set will be by nessesity small and the results most likely will contain large errors. For a large corpus of messages, we can use text classification algoritms to help with the coding. We will use the *RTextTools* package [@Jurka2014] as it conveniently provides a number of text mining tools.
+
+We can use supervised learning algorithms to help with the classification of knowledge carrying artifacts. They are trained on manually coded examples. The supervised learning algorithm attempts to generalise a function or mapping from inputs to outputs which can then be used speculatively to generate an output for previously unseen inputs. We have to split the manually coded data into two sets - a training set and a test set. The training set is used to train the classification algorithm and and the performance is evaluated on the test set. After training the learning algorithms, they can be applied to the unclassified data to automatically predict its coding.
+
+```{r tm1 ,eval=FALSE}
+doc_matrix <- create_matrix(cbind(Messages["ThreadId"],Messages["From"],Messages["To"], Messages["Text"]), language="english", removeNumbers=FALSE, stemWords=TRUE, weighting=tm::weightTfIdf)
+
+## nodet: replace Messages$FromId with Code columns
+container <- create_container(doc_matrix, Messages$FromId,trainSize=1:60, testSize=61:80, virgin=FALSE)
+
+models <- train_models(container, algorithms=c("MAXENT","SVM","BOOSTING"))
+
+results <- classify_models(container, models)
+analytics <- create_analytics(container, results)
+```
+**
 
 Social Network Analysis
 =======================
@@ -324,9 +349,7 @@ Find the largest cliques in the graph
 grC <- largest.cliques(gr)
 ```
 
-Plot the graph with the cliques coloured in different colours.
-
-```{r  fig7, fig.width=7, fig.height=6}
+```{r  fig7, fig.width=7, fig.height=6, fig.cap="The graph with the cliques coloured in different colours" }
 #a list of coulour to help with plotting the graphs
 colours = c("#E4B9CD","#BF6D92","#8F305B","#5F0930"
            ,"#FFD6CF","#E38F82","#AA4839","#71190B"
@@ -348,8 +371,7 @@ for (i in 1:length(grC)) {
 knet.plot.graph(gr)
 ```
 
-Plot a clique in a separate graph
-```{r  fig8, fig.width=7, fig.height=6}
+```{r  fig8, fig.cap="First clique in a separate graph"}
  # select the first clique
  sel <- grC[[1]]
  V(gr)$color <- "white"
@@ -365,13 +387,11 @@ Find communities in the generated graph using a model from statistical mechanics
 grc <- spinglass.community(gr)
 ```
 Plot the histogram of the community membership distribution
-```{r  fig10, fig.width=7, fig.height=6}
-hist(grc$membership, main="Histogram of community membership")
+```{r  fig10, fig.cap="Histogram of community membership"}
+hist(grc$membership, main="")
 ```
 
-Plot the graph with the communities coloured in different colours.
-
-```{r  fig11, fig.width=7, fig.height=6}
+```{r  fig11, fig.cap="The graph with the communities coloured in different colours"}
 #transfer the membership attribute from the communities object to the graph
 
 colours = sample( rainbow( length(grc) + 1) )
@@ -386,29 +406,25 @@ V(gr)$color <- colours[V(gr)$membership]
 knet.plot.graph(gr)
 ```
 
-Plot the communities detected in the graph
-```{r  fig12, fig.width=7, fig.height=6}
+```{r  fig12, fig.cap="The communities detected in the graph"}
 plot(grc,gr, vertex.label=NA, vertex.size=5)
 
 ```
 
 Use a different community detection method - fastgreedy algorithm, for a list of other community detection algorithms and related references check the (igraph documention)[http://igraph.org]
-```{r  fig13, fig.width=7, fig.height=6}
+```{r  fig13, }
 gfc <- fastgreedy.community(gr)
 ```
 
 Plot the membership histogram
-```{r  fig14, fig.width=7, fig.height=6}
-hist(gfc$membership, main="Histogram of the fastgreedy community membership")
+```{r  fig14,  fig.cap="Histogram of the fastgreedy community membership"}
+hist(gfc$membership, main="")
 ```
-
-Plot the graph with the communities coloured in different colours.
-```{r  fig15, fig.width=7, fig.height=6}
+a
+```{r  fig15, fig.cap="The graph with the communities coloured in different colours"}
 plot(gfc,gr, vertex.label=NA, vertex.size=5)
 ```
-
-Plot the dendogram of the community hierarchy
-```{r  fig16, fig.width=10, fig.height=8}
+```{r  fig16, fig.width=10, fig.height=8, fig.cap="The dendogram of the community hierarchy"}
 dendPlot(gfc)
 ```
 
