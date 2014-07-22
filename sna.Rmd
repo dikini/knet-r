@@ -133,7 +133,7 @@ write.csv(Messages, "data/Messages.csv")
 The file above cannot be distributed, as it could contain sensitive information in the text of the messages. We can save and possibly make public a subset of the data, removing the message text and url columns. While the result data file cannot be used for text analysis, as the object of analysis is missing, the network data is present and the Social Network analysis can be repeated or expanded on.
 
 ```{r da8}
-write.csv(Messages[1,c(1:4,6:8)], "data/Messages.safe.csv")
+write.csv(Messages[,c(1:4,6:8)], "data/Messages.safe.csv")
 ```
 
 Data Exploration
@@ -227,9 +227,9 @@ Document Classification, Text Analysis
 
 For the purposes of the project we have to be able to detect the presence of knowledge artifacts in the body of messages. This is a very broad and consequently vague concept. What is knowledge in this sense? How can we identify knowledge? How can we classify it? What is considered knowledge in the context of the company? What are the knowledge context of the individuals? How does the social network supported by social media help to disseminate or discover knowledge? How does the artifact network, supported by social media help? 
 
-We will work within the KSEM framework[@Helms2009].First, we have to review the data, to be able to identify classes of knowledge carrying artefacts, for example - innovation, optimistaion of processes, discussion of results, seeking advice, etc... These are strongly context dependent, they will differ from company to company and network to network, as they depend on what the compaies do, their culture, and other environmental factors.
+We will work within the KSEM framework[@Helms2009].First, we have to review the data, to be able to identify classes of knowledge carrying artefacts, for example - innovation, optimisation of processes, discussion of results, seeking advice, etc... These are strongly context dependent, they will differ from company to company and network to network, as they depend on what the compaies do, their culture, and other environmental factors.
 
-Next, having identified the classes of knowledge carrying artifacts, we have to perform manual coding of the messages. This can be done in spreadsheets like excel or specialised tools like NVivo. For small numbers of messages, less than a thousand, for example, there is no point in using automatic classification techniques, as the training set will be by nessesity small and the results most likely will contain large errors. For a large corpus of messages, we can use text classification algoritms to help with the coding. We will use the *RTextTools* package [@Jurka2014] as it conveniently provides a number of text mining tools [@Jurka2011]. The resulting predictions tend to improve (nonlinearly) with the size of the reference dataset Computers with at least 4GB of memory should be able to run RTextTools on medium to large datasets by using the three low-memory algorithms included: general linearized models [@Friedman2010], maximum entropy [@jurka2013], and support vector machines [@Meyer2014]. In the examples below, we don't use any coding of knowledge artifacts, as the corpus is too small to create meaningful labels at this point. Instead we try to predict the author id *FromId*, from a subset of the data. It is an artificial example, which demonstrates the text classification techniques.
+Next, having identified the classes of knowledge carrying artifacts, we have to perform manual coding of the messages. This can be done in spreadsheets like excel or specialised tools like NVivo. For small numbers of messages, less than a thousand, for example, there is no point in using automatic classification techniques, as the training set will be by nessesity small and the results most likely will contain large errors. For a large corpus of messages, we can use text classification algoritms to help with the coding. We will use the *RTextTools* package [@Jurka2014] as it conveniently provides a number of text mining tools. The resulting predictions tend to improve (nonlinearly) with the size of the reference dataset Computers with at least 4GB of memory should be able to run RTextTools on medium to large datasets by using the three low-memory algorithms included: general linearized models [@Friedman2010], maximum entropy [@Jurka2012], and support vector machines [@Meyer2014]. In the examples below, we don't use any coding of knowledge artifacts, as the corpus is too small to create meaningful labels at this point. Instead we try to predict the author id *FromId*, from a subset of the data. It is an artificial example, which demonstrates the text classification techniques.
 
 We can use supervised learning algorithms to help with the classification of knowledge carrying artifacts. They are trained on manually coded examples. The supervised learning algorithm attempts to generalise a function or mapping from inputs to outputs which can then be used speculatively to generate an output for previously unseen inputs. We have to split the manually coded data into two sets - a training set and a test set. The training set is used to train the classification algorithm and and the performance is evaluated on the test set. After training the learning algorithms, they can be applied to the unclassified data to automatically predict its coding.
 
@@ -273,7 +273,7 @@ results <- classify_models(container, models)
 
 The *create_analytics()* function returns a container with four different summaries: by label (e.g., topic), by
 algorithm, by document, and ensemble. The summaries help in interpreting the results of the machine learning model predictions.
-a more detailed account of the different summaries is given in [@jurka2011].
+a more detailed account of the different summaries is given in [@Jurka2014].
 ```{r tm5}
 analytics <- create_analytics(container, results)
 ```
