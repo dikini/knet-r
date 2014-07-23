@@ -8,7 +8,8 @@ output:
   tufterhandout::pdf_tufte_handout:
     keep_tex: false
     pandoc_args: ["--toc"]
-
+  word_document:
+    pandoc_args: ["-S"]
 bibliography: bibliography.bib
 csl: harvard-style.csl
 ---
@@ -42,9 +43,9 @@ In order to be able to follow the guide and perform the excercises the following
 
 All the required programs are available for Windows, Linux and MacOS X, but the help of a systems administrator to install the software may be required.
 
+The aim of this guide is dual - to show how to perform text mining, classification and social network analysis using data captured for the KNOWNET project, and at the same time to ensure the results from the experiments and the analysis explained are reproducible. The reason to use literate programming  [@knuth1992] as the structure of the document is to further the goal of reproducibility - the guide is the program, the resulting pdf or html file is the ooutput of the program. Adding new or different data, will produce new results. Demonstrating reproducible research [@stodden2014; ]  is an important goal.  Literate programming ensures the guide along with the full computational environment used to produce the results in the paper such as the code, data, etc. can be used to reproduce the results and create new work based on it.
 
-
-This guide is based on the classic Data Mining (DM) and Knowledge Discovery in Databases (KDD) processes [@Fayyad1996], consists of the following steps for exploratory analysis^[The process is repeated until the results are satisfactory] : 
+This guide is based on the classic Data Mining (DM) and Knowledge Discovery in Databases (KDD) processes [@Fayyad1996], consists of the following steps for exploratory analysis^[The process is repeated until the results are satisfactory]: 
  
   1. Aquisition
   1. Selection 
@@ -57,98 +58,118 @@ This guide is based on the classic Data Mining (DM) and Knowledge Discovery in D
 Data Aquisition
 =======================
 
-Acquired from Yammer using the data mining extension
+Importing data
+-----------------------
+
+The data is aquired from Yammer using web scraping and resides in several comma separated file (csv).
+
+To load the threads data from the corresponding csv file use the *read.csv* function. The first argument is the relative path to the file, the second informs the function that there is no header row containging the names of the columns in the file. The result is data frame^[A data frame in R is used for storing data tables. It is a list of vectors of equal length.]. As the filed does not contain a header, we can name the columns explicitly using the *colnames* function. The order of names must correspond to the order of the columns in the file and the data frame.
 
 ```{r da1,tidy = FALSE, prompt=FALSE}
-# ThreadId, From, FromId, FromModel, FromUrl, To, ToId, Message
 Threads <- read.csv("data/Threads.csv", header=FALSE)
+
 colnames(Threads) <- c("ThreadId", "From", "FromId", "FromType"
                      , "url",  "To", "ToId", "ToType","Message")
+```
 
+The same procedure is repeated with the file containing the replies.
+
+```{r da1-1,tidy = FALSE, prompt=FALSE}
 Replies <- read.csv("data/Replies.csv", header=FALSE)
 
-#assign names to the columns
 colnames(Replies) <- c("ThreadId", "From", "FromId", "FromType"
                      , "url", "To", "ToId", "Message")
-
 ```
 
-The data imported from the two files has to be merged into a *Messages* data frame to have all of the messages in one place. In order to do that, the *Replies* data frame is augmented with the missing *From* column. 
+Data preparation and cleanup
+---------------------------------------
 
+The data imported from the two files has to be merged into a *Messages* data frame to have all of the messages in one place. In order to do that, the *Replies* data frame  is augmented with the missing *From* column. 
+
+From observation we know that all the replies are replies to a user, but that information is missing from the table. To rectify this we add a new column to the *Replies* data frame and uniformly assign a value of "user" to every row value in that column.
 ```{r da2}
 Replies$ToType <- "user"
-Messages <- rbind(Threads,Replies)
 ```
 
-Similarly fill in the empty destination values in the Threads data frame.
+
+
+Similarly *Threads* can contain rare messages taht are global notifications, visible by anyone, but contain no destination information. It shouldn't change the meaning of the data if we address it to the *All Network* group. To do that, we create an index of all rows in threads which comtain an empty string, and use it to fill the values of the required destination column slots.
+
 ```{r da2.1}
 index = (Threads$ToType=="")
 Threads$To[index] <- "All Network"
 Threads$ToId[index] <- "company"
-Threads$ToType[index] <- "user"
+Threads$ToType[index] <- "group"
 
-index = (Threads$ToType==NA)
-Threads$To[index] <- "All Network"
-Threads$ToId[index] <- "company"
-Threads$ToType[index] <- "user"
 ```
 
-Merge the two data frames into one using *rbind*.
+Now we can merge the two data frames row by row by using the *rbind* function.
 ```{r da2.2}
 Messages <- rbind(Threads,Replies)
 ```
 
-The data as is unsuitable for publication, as it contains the real names. We first create a conversion table, the generate random names, add them to the source tables, and replace the real names with the random ones in the *Messages* table.
+At this stage, the data is unsuitable for publication, as it contains the real names and may contain sensitive information in the message text. To solve the first problem, the procedure is to first create a conversion table, generate random names, add them to the source tables, and replace the real names with the random ones in the *Messages* table.
 
+First, we merge the "From" and "To" columns into a new data frame with one column, which we name *From*.
 ```{r da3, message=FALSE, results='asis'}
-#Merge From and To names
 names <- data.frame(levels(factor(c(levels(Messages$From),levels(Messages$To)))))
 colnames(names) <- c("From")
 ```
-Make sure that we have a repeatable pseudo-random sequence by assigning a set seed.
+
+To ensure that we have a repeatable pseudo-random sequence an explicit seed number is set. Using the same seed number guarantees that the sequence of "random" numbers generated by the computer and used in various routines is the same.
+
 ```{r da4}
 set.seed(123345)
 ```
 
-"Anonymize" the names, by selecting creating a translation table of real to randomnames and replacing the real names with the newly generated random names in the *From* and *To* columns of the Messages data frame.
+Next, we create an anynomisation translation data frame relating randomly generated names with the real names.
 ```{r da5}
 names$Name <- randomNames(length(levels(names$From)),which.names="first")
-
-Threads$Name <- names$Name[Threads$From]
-Threads$ToName <- names$Name[Threads$To]
-
-Replies$Name <- names$Name[Replies$From]
-Replies$ToName <- names$Name[Replies$To]
-
-#replace the real names with the fake ones
-Messages$From <- names$Name[Messages$From]
-Messages$To <- names$Name[Messages$To]
 ```
 
-Let's save the *Messages* table for future use.
+We crate a cloned copy of the Messages data frame, in which we replace the real names with the previously generated fake ones with the help of the translation data frame.
+```{r da6}
+AMessages <- Messages;
+AMessages$From <- names$Name[AMessages$From]
+AMessages$To <- names$Name[AMessages$To]
+```
+
+The rest of the file uses the real names as it is easier to relate names with facts. When generating a document for public use uncomment the following line of code assigning the anonymised *AMessage* back to the *Messages* data frame
+
 ```{r da7}
-write.csv(Messages, "data/Messages.csv")
+# Messages <- AMessages;
 ```
 
-The file above cannot be distributed, as it could contain sensitive information in the text of the messages. We can save and possibly make public a subset of the data, removing the message text and url columns. While the result data file cannot be used for text analysis, as the object of analysis is missing, the network data is present and the Social Network analysis can be repeated or expanded on.
-
+Let's save the *Messages* tables for future use.
 ```{r da8}
-write.csv(Messages[,c(1:4,6:8)], "data/Messages.safe.csv")
+write.csv(Messages, "data/Messages.csv")
+write.csv(AMessages, "data/AMessages.csv")
+```
+
+
+The files above cannot be distributed, as they could contain sensitive information in the text of the messages. We can save and possibly make public a subset of the data, removing the message text and url columns. While the result data file cannot be used for text analysis, as the object of analysis is missing, the network data is present and the Social Network analysis can be repeated or expanded on.
+
+```{r da100}
+write.csv(AMessages[,c(1:4,6:8)], "data/Messages.safe.csv")
 ```
 
 Data Exploration
 =======================
 
-Let's look at the first five rows and only the *From*, *To*, and *Message* columns from the *Messages* data frame. The message text is trimmed  for illustration purposes
+The purpose of data exploration is to get insights about the data, its structure and content.
+
+Let's look at the first five rows and only the *From*, *To*, and *Message* columns from the *Messages* data frame. The message text is trimmed  for illustration purposes. All of the data can be interavctively explored in RStudio.
+
 ```{r de1, results="asis", message=FALSE,warnings = FALSE}
 Messages$Text <- strtrim(Messages$Message,30)
-# switch comments if generating pdf
-
 kable(Messages[1:5,c("From","To","Text")], format = 'pandoc')
 
 ```
 
-Let's look at some of the message counts. It can be used to gauge the activity and social dynamics in the network.
+Counting and graphing message activity
+--------------------------------------
+
+Next let's look at some simple message counts. It can be used to gauge the activity and social dynamics in the network.
 ```{r de2,  fig.cap="Heatmap of messages between individuals and groups in the social network "}
 mcount <- ddply(Messages,.(From,To),nrow)
 colnames(mcount) <- c("From", "To", "Count")
@@ -194,6 +215,9 @@ Similarly, who receives most messages. For individuals it may mean that they are
         , colour = "grey50")))
 ```
 
+Message Wordcloud
+--------------------
+
 Finally, let's create a word cloud, from the text terms contained in the messages, taking into account the word frequency. First, create a corpus using the *Corpus* and *VectorSource* functions from the *tm* package. 
 ```{r de5 }
 corp <- Corpus(VectorSource(as.vector(Messages$Text)))
@@ -201,11 +225,12 @@ corp <- Corpus(VectorSource(as.vector(Messages$Text)))
 
 Next create a term document matrix, which relates the different words and documents, applying a number of different filters like stopwords, tolower, etc...
 ```{r de6 }
-  tdm = TermDocumentMatrix(corp,
+tdm = TermDocumentMatrix(corp,
   control = list(
        removePunctuation = TRUE
      , stopwords = c(stopwords("english"))
      , removeNumbers = TRUE
+     , weighting = weightTfIdf
      , tolower = TRUE))
 
 term_matrix <- as.matrix(tdm)
@@ -213,14 +238,66 @@ term_matrix <- as.matrix(tdm)
 
 Calculate the word frequencies vector *word_freqs* and order the column names according to frequency
 ```{r de7 }
-  word_freqs = sort(rowSums(term_matrix), decreasing=TRUE)
-  dm = data.frame(word=names(word_freqs), freq=word_freqs)
+word_freqs = sort(rowSums(term_matrix), decreasing=TRUE)
+dm = data.frame(word=names(word_freqs), freq=word_freqs)
 ```
 
 Draw a wordcloud based on the most frequesnt words
 ```{r de8, fig.cap="Wordcloud created from the text of the messages" }
-wordcloud(dm$word, dm$freq, random.order=FALSE, colors=brewer.pal(8, "Dark2"))
+wordcloud(dm$word, dm$freq, random.order=FALSE, colors=brewer.pal(8, "Dark2"), max.words = 20)
 ```
+
+In order to get a better idea what people are tolking about, we might want tor remove all names from the term document matrix. We will follow the same procedure as before. First create a corpus of names
+
+```{r de9}
+namesCorp <- Corpus(VectorSource(as.vector(names$From)))
+```
+
+Then, create the term-document matrix.
+```{r de10 }
+names_tdm = TermDocumentMatrix(namesCorp,
+  control = list(
+       removePunctuation = TRUE
+     , removeNumbers = TRUE
+     , tolower = TRUE))
+
+names_matrix <- as.matrix(names_tdm)
+```
+
+Extract the terms from the row names of the matrix.
+
+```{r de11}
+name_terms <- rownames(names_matrix)
+```
+
+
+Next create a new term document matrix, but this time adding the name terms to the stopwords.
+```{r de12}
+tdm2 = TermDocumentMatrix(corp,
+  control = list(
+       removePunctuation = TRUE
+     , stopwords = c(stopwords("english"), name_terms)
+     , removeNumbers = TRUE
+     , tolower = TRUE
+     , weighting = weightTfIdf))
+
+term_matrix2 <- as.matrix(tdm2)
+```
+
+
+Calculate the new word frequencies vector *word_freqs2* and order the column names according to frequency
+```{r de13 }
+word_freqs2 = sort(rowSums(term_matrix2), decreasing=TRUE)
+dm2 = data.frame(word=names(word_freqs2), freq=word_freqs2)
+```
+
+Draw a wordcloud based on the most frequesnt words
+```{r de14, fig.cap="Wordcloud created from the text of the messages with names removed" }
+wordcloud(dm2$word, dm2$freq, random.order=FALSE, colors=brewer.pal(8, "Dark2"), max.words = 20)
+```
+
+If we compare the two worclouds, we can see more content information in the new one. Removing the names give a more "topical" feeling of the text. We could add more stop words in order to improve the information content of the word cloud, i.e. words to be removed from consideration, for example *like*, *also*, *said*, etc... 
+
 
 Document Classification, Text Analysis
 ==========================================
@@ -229,9 +306,18 @@ For the purposes of the project we have to be able to detect the presence of kno
 
 We will work within the KSEM framework[@Helms2009].First, we have to review the data, to be able to identify classes of knowledge carrying artefacts, for example - innovation, optimisation of processes, discussion of results, seeking advice, etc... These are strongly context dependent, they will differ from company to company and network to network, as they depend on what the compaies do, their culture, and other environmental factors.
 
-Next, having identified the classes of knowledge carrying artifacts, we have to perform manual coding of the messages. This can be done in spreadsheets like excel or specialised tools like NVivo. For small numbers of messages, less than a thousand, for example, there is no point in using automatic classification techniques, as the training set will be by nessesity small and the results most likely will contain large errors. For a large corpus of messages, we can use text classification algoritms to help with the coding. We will use the *RTextTools* package [@Jurka2014] as it conveniently provides a number of text mining tools. The resulting predictions tend to improve (nonlinearly) with the size of the reference dataset Computers with at least 4GB of memory should be able to run RTextTools on medium to large datasets by using the three low-memory algorithms included: general linearized models [@Friedman2010], maximum entropy [@Jurka2012], and support vector machines [@Meyer2014]. In the examples below, we don't use any coding of knowledge artifacts, as the corpus is too small to create meaningful labels at this point. Instead we try to predict the author id *FromId*, from a subset of the data. It is an artificial example, which demonstrates the text classification techniques.
+Next, having identified the classes of knowledge carrying artifacts, we have to perform manual coding of the messages. This can be done in spreadsheets like excel or specialised tools like NVivo. For small numbers of messages, less than a thousand, for example, there is no point in using automatic classification techniques, as the training set will be by nessesity small and the results most likely will contain large errors. For a large corpus of messages, we can use text classification algoritms to help with the coding. We will use the *RTextTools* package [@Jurka2014] as it conveniently provides a number of text mining tools. The resulting predictions tend to improve (nonlinearly) with the size of the reference dataset. Computers with at least 4GB of memory should be able to run RTextTools on medium to large datasets by using the three low-memory algorithms included: general linearized models [@Friedman2010], maximum entropy [@Jurka2012], and support vector machines [@Meyer2014]. In the examples below, we don't use any coding of knowledge artifacts, as the corpus is too small to create meaningful labels at this point. Instead we try to predict the author id *FromId*, from a subset of the data. It is an artificial example, which demonstrates the text classification techniques.
 
 We can use supervised learning algorithms to help with the classification of knowledge carrying artifacts. They are trained on manually coded examples. The supervised learning algorithm attempts to generalise a function or mapping from inputs to outputs which can then be used speculatively to generate an output for previously unseen inputs. We have to split the manually coded data into two sets - a training set and a test set. The training set is used to train the classification algorithm and and the performance is evaluated on the test set. After training the learning algorithms, they can be applied to the unclassified data to automatically predict its coding.
+
+In essence the workflow is[@RTxt2012]: 
+
+* Import hand-coded data into R 
+* Remove noise from your data, and create a text corpus the computer can interpret 
+* Use algorithm(s) to train a model 
+* Test on reference out-of-sample data; establish accuracy criteria 
+* Use model to classify virgin data 
+* Manually label data that do not meet accuracy criteria 
 
 First, we create a document-term matrix. A number of pre-processing options from the *tm package* [@Feinerer2008] are available at this stage, including stripping whitespace, removing sparse terms, word stemming, and stopword removal for several languages. *removeSparseTerms* is set to .998, to reduce the size of the document-term matrix, running the risk of reducing the accuracy in real-world applications.note that the text column is encapsulated in a *cbind()* data frame, as it allows us to perform supervised learning on multiple columns.
 
@@ -284,9 +370,10 @@ ensembleSummary <- create_ensembleSummary(analytics@document_summary)
 kable(ensembleSummary, format="pandoc")
 ```
 
-Save the document summary to file.
-```{r tm7, prompt=FALSE}
-write.csv(analytics@document_summary, "data/DocumentSummary.csv")
+Use *create_precisionRecallSummary()* to creates a summary with precision, recall, and F1 scores for each algorithm broken down by unique label. To better fit the page, we transpose the computed summary, and limit the number of results.
+```{r tm7, prompt=FALSE, results='asis'}
+prSummary <- create_precisionRecallSummary(container, results)
+kable(t(prSummary)[,4:9], format="pandoc")
 ```
 
 
