@@ -16,15 +16,14 @@ csl: harvard-style.csl
 
 
 ```{r setup, include=FALSE}
-library(knet)    # KNOWNET helper utilities
 library(ggplot2) # Format R data frames as LaTeX/HTML tables
 library(GGally)
 library(gridExtra)
-library(xtable)  # Produce a flowchart.
-library(diagram) # Produce a flowchart.
+library(diagram) 
 library(plyr)
 library(igraph)  # graph manipulation and anlysis
 library(tm)
+library(RTextTools)
 
 opts_chunk$set(cache=TRUE) # caching of document output - could speed up the results
 ```
@@ -350,11 +349,14 @@ The train_models() function takes all specified algorithms, to produce an object
 classify_models(). 
 ```{r tm3}
 models <- train_models(container, algorithms=c("MAXENT","SVM","GLMNET", "SLDA", "RF", "TREE", "NNET", "BAGGING",  "BOOSTING"))
+model <- train_model(container, "MAXENT")
+res <- classify_model(container, model)
 ```
 
 The function classify_models() returns the classified data.
 ```{r tm4}
 results <- classify_models(container, models)
+
 ```
 
 The *create_analytics()* function returns a container with four different summaries: by label (e.g., topic), by
@@ -370,12 +372,15 @@ ensembleSummary <- create_ensembleSummary(analytics@document_summary)
 kable(ensembleSummary, format="pandoc")
 ```
 
+
+
 Use *create_precisionRecallSummary()* to creates a summary with precision, recall, and F1 scores for each algorithm broken down by unique label. To better fit the page, we transpose the computed summary, and limit the number of results.
 ```{r tm7, prompt=FALSE, results='asis'}
 prSummary <- create_precisionRecallSummary(container, results)
 kable(t(prSummary)[,4:9], format="pandoc")
 ```
 
+*Add model selection guideline*
 
 Social Network Analysis
 =======================
