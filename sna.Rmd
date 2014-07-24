@@ -24,6 +24,8 @@ library(plyr)
 library(igraph)  # graph manipulation and anlysis
 library(tm)
 library(RTextTools)
+library(randomNames)
+library(wordcloud)
 
 opts_chunk$set(cache=TRUE) # caching of document output - could speed up the results
 ```
@@ -136,7 +138,7 @@ AMessages$To <- names$Name[AMessages$To]
 The rest of the file uses the real names as it is easier to relate names with facts. When generating a document for public use uncomment the following line of code assigning the anonymised *AMessage* back to the *Messages* data frame
 
 ```{r da7}
-# Messages <- AMessages;
+Messages <- AMessages;
 ```
 
 Let's save the *Messages* tables for future use.
