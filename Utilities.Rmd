@@ -1,0 +1,53 @@
+
+
+
+```{r m1,tidy = FALSE, prompt=FALSE}
+getMessages <- function( threads = "data/Threads.csv", replies ="data/Replies.csv"  ) {
+  
+  Threads <- read.csv(threads, header=FALSE)
+  colnames(Threads) <- c("ThreadId", "From", "FromId", "FromType"
+                       , "url",  "To", "ToId", "ToType","Message")
+  
+  Replies <- read.csv(replies, header=FALSE)
+  colnames(Replies) <- c("ThreadId", "From", "FromId", "FromType"
+                     , "url", "To", "ToId", "Message")
+  
+
+  Replies$ToType <- "user"
+  
+  index = (Threads$ToType=="")
+  Threads$To[index] <- "All Network"
+  Threads$ToId[index] <- "company"
+  Threads$ToType[index] <- "group"
+
+  Messages <- rbind(Threads,Replies)
+  names <- data.frame(levels(factor(c(levels(Messages$From),levels(Messages$To)))))
+  colnames(names) <- c("From")
+
+  result <-data.frame()
+  
+  result$Messages <- Messages
+  result$Names <- names
+  
+  gc()
+  return (result)
+}
+
+```
+
+
+```{r m1,tidy = FALSE, prompt=FALSE}
+
+anonMessages <- function( messages ) {
+  result <- data.frame()
+  
+  result$Names$Name <- randomNames(length(levels( messages$Names$From)),which.names="first")
+  result$Messages <- messages$Messages;
+  result$Messages$From <- messages$Names$Name[result$Messages$From]
+  result$Messages$To <- messages$Names$Name[result$Messages$To]
+  
+  gc()
+  return (result)
+}
+
+```
