@@ -1,7 +1,8 @@
+```{r setup_utilities, include=FALSE}
+library(matrixStats)
+```
 
-
-
-```{r m1,tidy = FALSE, prompt=FALSE}
+```{r getMessages,tidy = FALSE, prompt=FALSE}
 getMessages <- function( threads = "data/Threads.csv", replies ="data/Replies.csv"  ) {
   
   Threads <- read.csv(threads, header=FALSE)
@@ -36,7 +37,7 @@ getMessages <- function( threads = "data/Threads.csv", replies ="data/Replies.cs
 ```
 
 
-```{r m1,tidy = FALSE, prompt=FALSE}
+```{r anonMessages,tidy = FALSE, prompt=FALSE}
 
 anonMessages <- function( messages ) {
   result <- data.frame()
@@ -50,4 +51,61 @@ anonMessages <- function( messages ) {
   return (result)
 }
 
+```
+
+Incomplete beta function
+```{r ibeta, tidy = FALSE, prompt=FALSE}
+ibeta <- function(x,a,b){ pbeta(x,a,b) }
+```
+
+the betaXbiggerY function ported from Barber's original
+
+function [p logp]=betaXbiggerY(a,b,c,d)
+%BETAXBIGGERY  p(x>y) for x~Beta(a,b), y~Beta(c,d)
+% [p logp]=betaXbiggerY(a,b,c,d)
+del=0.0001; x=0:del:1;
+p = del*sum(x.^(a-1).*(1-x).^(b-1).*betainc(x,c,d))/beta(a,b);
+m=log(del)+(a-1)*log(x)+(b-1)*log(1-x)+log(betainc(x,c,d))-betaln(a,b);
+logp = logsumexp(m);
+
+```{r betaXbiggerY, tidy = FALSE, prompt=FALSE}
+betaXbiggerY <- function(a,b,c,d) {
+  
+  #p(x>y) for x~Beta(a,b), y~Beta(c,d)
+  
+  del <- 0.0001
+  mn <- 1e-320
+  x <- seq(0 + mn, 1 - mn, by = del)
+  
+  nomf <- function(x, a, b, c, d ) { 
+            return () 
+          }
+  
+  
+  p <- del * sum( (x ^ (a-1)) * ((1-x) ^ (b-1)) * pbeta(x,c,d) )/ beta(a,b)
+  
+  m <- log(del)+(a-1)*log(x)+(b-1)*log(1-x)+log(pbeta(x,c,d) + mn) - log( beta(a,b) + mn);
+  
+  logp <- logSumExp(m);
+  return (c("p"=p,"logp"=logp))
+}
+
+ibeta.plot <- function(a,b) {
+  x <- seq(0+1e-320, 1 - 1e-320, by = del)
+  ( ggplot(c(x=x,y=ibeta(x,a,b)), aes(x=x))
++ geom_line()
+)
+}
+```
+
+```{r}
+modelOdds <- function ( u, v, a, b, c, d) {
+   beta( u + a, v + b ) * beta(u + c, v + d) * pbeta(u + a, v + b, u + c, v + d) / (beta(u,v) * beta(u + a + c, v + b + d))
+}
+
+```
+
+
+```{r}
+lpbeta <- function(t,a,b) { sum((a-1)*log(t) + (b-1)^(t-1)) }
 ```
