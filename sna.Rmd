@@ -26,8 +26,9 @@ library(tm)
 library(RTextTools)
 library(randomNames)
 library(wordcloud)
+library(knitr)
 
-opts_chunk$set(cache=TRUE) # caching of document output - could speed up the results
+#opts_chunk$set(cache=TRUE) # caching of document output - could speed up the results
 ```
 
 Introduction
@@ -383,6 +384,53 @@ kable(t(prSummary)[,4:9], format="pandoc")
 ```
 
 *Add model selection guideline*
+
+
+```{r tm8-1, prompt=FALSE, results='asis'}
+loglikelihood <- function(evidence)
+{
+  N <- sum(evidence)
+  sum(log(abs(evidence - 1e-323)) - log(N))
+}
+
+kdiffs <- function(v) {
+  function(n) { 2*(n - v) }
+}
+
+
+knr <- function(x) {
+  if(x <  0 ) { txt = "Negative"}
+  if(x <= 2 ) { txt = "Barely worth a mention"}
+  else if(x <= 6 ) { txt = "Positive" }
+  else if(x <= 10 ) { txt = "Strong" }
+  else { txt = "Very Strong" }
+  return(txt)
+}
+
+comp_matrix <- function( v ) {
+  apply(v,2, kdiffs(v) )
+}
+
+logll <- function(v) { t(sort(apply(v,2,loglikelihood))) }
+
+alg_recall <- analytics@algorithm_summary[c(
+   "MAXENTROPY_RECALL"
+  ,"SVM_RECALL"
+  ,"SLDA_RECALL"
+  ,"LOGITBOOST_RECALL"
+  ,"BAGGING_RECALL"
+  ,"FORESTS_RECALL"
+  ,"GLMNET_RECALL"
+  ,"TREE_RECALL"
+  ,"NNETWORK_RECALL"
+)]
+
+cm <- comp_matrix(logll(alg_recall))
+row.names(cm) <- colnames(cm)
+
+kable(cm, format="pandoc")
+
+```
 
 Social Network Analysis
 =======================
