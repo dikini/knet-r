@@ -4,7 +4,7 @@ author: Vladimir Zlatanov
 organization: Brunel University
 output:
   tufterhandout::html_tufte_handout:
-    pandoc_args: ["--toc"]
+    pandoc_args: ["--toc",  "--jsmath"]
   tufterhandout::pdf_tufte_handout:
     keep_tex: false
     pandoc_args: ["--toc"]
@@ -384,35 +384,8 @@ kable(t(prSummary)[,4:9], format="pandoc")
 ```
 
 *Add model selection guideline*
-
-
-```{r tm8-1, prompt=FALSE, results='asis'}
-loglikelihood <- function(evidence)
-{
-  N <- sum(evidence)
-  sum(log(abs(evidence - 1e-323)) - log(N))
-}
-
-kdiffs <- function(v) {
-  function(n) { 2*(n - v) }
-}
-
-
-knr <- function(x) {
-  if(x <  0 ) { txt = "Negative"}
-  if(x <= 2 ) { txt = "Barely worth a mention"}
-  else if(x <= 6 ) { txt = "Positive" }
-  else if(x <= 10 ) { txt = "Strong" }
-  else { txt = "Very Strong" }
-  return(txt)
-}
-
-comp_matrix <- function( v ) {
-  apply(v,2, kdiffs(v) )
-}
-
-logll <- function(v) { t(sort(apply(v,2,loglikelihood))) }
-
+Extract and prepare the algorithm recall summaries for further processing.
+```{r tm8-conf, prompt=FALSE, results='asis'}
 alg_recall <- analytics@algorithm_summary[c(
    "MAXENTROPY_RECALL"
   ,"SVM_RECALL"
@@ -424,13 +397,74 @@ alg_recall <- analytics@algorithm_summary[c(
   ,"TREE_RECALL"
   ,"NNETWORK_RECALL"
 )]
+colnames(alg_recall) <- c(
+   "maxentropy"
+  ,"svm"
+  ,"slda"
+  ,"logit boost"
+  ,"bagging"
+  ,"forests"
+  ,"glmnet"
+  ,"tree"
+  ,"nnetwork"
+)
+```
 
+Define a loglikelihood function for use in the processing of the data
+```{r tm8-1, prompt=FALSE, results='asis'}
+loglikelihood <- function(evidence)
+{
+  N <- length(evidence)
+  #log(prod(M_i(D_j)/N)) = sum(log(M_i(D_j)) - log(N)), 
+  #with a tiny offset in order to  handle numerically log(0) and log(1)
+  sum(log(abs(evidence - 1e-323)) - log(N))
+}
+```
+
+A function to calculate the model likelihoods and sort the results in ascending order
+```{r tm8-5, prompt=FALSE, results='asis'}
+logll <- function(v) { t(sort(apply(v,2,loglikelihood))) }
+```
+
+Calculate the normalised comparison coefficient as per knr
+```{r tm8-2, prompt=FALSE, results='asis'}
+kdiffs <- function(v) {
+  function(n) { 2*(n - v) }
+}
+```
+
+A map from K to a verbal description of evidence in support of a hypothesis (model)
+```{r tm8-3, prompt=FALSE, results='asis'}
+knr <- function(x) {
+  if(x <  0 ) { txt = "Negative"}
+  if(x <= 2 ) { txt = "Barely worth a mention"}
+  else if(x <= 6 ) { txt = "Positive" }
+  else if(x <= 10 ) { txt = "Strong" }
+  else { txt = "Very Strong" }
+  return(txt)
+}
+```
+
+A function to xalculate the comparison matrix
+```{r tm8-4, prompt=FALSE, results='asis'}
+comp_matrix <- function( v ) {
+  apply(v,2, kdiffs(v) )
+}
+```
+
+Calculate the comparison matrix and format the row and column names
+```{r tm8-7, prompt=FALSE, results='asis'}
 cm <- comp_matrix(logll(alg_recall))
+colnames(cm)
 row.names(cm) <- colnames(cm)
+```
 
-kable(cm, format="pandoc")
+Display an extract of the matrix with the worst and best results
+```{r tm8-8, prompt=FALSE, results='asis'}
+kable(cm[c(1:2,6:8),c(1:2,6:8)], format="pandoc")
 
 ```
+
 
 Social Network Analysis
 =======================
